@@ -2,6 +2,10 @@
 
 This repository is configured to run **NMS as an independent Node.js application**. It does not depend on DukeBox or Executive Suite and does not modify their files.
 
+## Standalone deployment values
+
+The repository’s production database layer now targets PostgreSQL/Supabase through Drizzle and the `postgres` driver. For Vercel, use the project’s Vite settings and the serverless API entrypoint under `api/index.ts`. The cPanel values below remain only as a reference for any future non-Vercel deployment.
+
 ## cPanel Selector values
 
 | Field | Value |
@@ -31,7 +35,7 @@ The standalone server requires the following values:
 - `NODE_ENV=production`
 - `JWT_SECRET`: a long random secret used for protected session cookies
 - `NMS_PORTAL_PIN`: the portal access PIN
-- Either `DATABASE_URL` or `NMS_DATA_FILE`
+- Either `DATABASE_URL` or `NMS_DATA_FILE`; for Vercel production, use the persistent PostgreSQL `DATABASE_URL` from the NMS Supabase project
 
 Use `.env.example` as the variable-name reference. Populate secrets only in cPanel environment variables or a server-side `.env` file. Never commit a populated `.env` file.
 

@@ -1,5 +1,6 @@
 import { and, asc, eq } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
+import postgres from "postgres";
+import { drizzle } from "drizzle-orm/postgres-js";
 import {
   InsertPortalDecision,
   InsertPortalMember,
@@ -23,7 +24,8 @@ let _db: ReturnType<typeof drizzle> | null = null;
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
-      _db = drizzle(process.env.DATABASE_URL);
+      const client = postgres(process.env.DATABASE_URL, { prepare: false });
+      _db = drizzle(client);
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;
@@ -62,7 +64,10 @@ export async function upsertUser(user: InsertUser): Promise<void> {
   values.lastSignedIn ??= new Date();
   if (Object.keys(updateSet).length === 0) updateSet.lastSignedIn = new Date();
 
-  await db.insert(users).values(values).onDuplicateKeyUpdate({ set: updateSet });
+  await db.insert(users).values(values).onConflictDoUpdate({
+    target: users.openId,
+    set: updateSet,
+  });
 }
 
 export async function getUserByOpenId(openId: string) {
@@ -86,7 +91,10 @@ export async function getOrCreatePinClientUser() {
       role: "user",
       lastSignedIn: new Date(),
     })
-    .onDuplicateKeyUpdate({ set: { lastSignedIn: new Date() } });
+    .onConflictDoUpdate({
+      target: users.openId,
+      set: { lastSignedIn: new Date(), updatedAt: new Date() },
+    });
   const user = await getUserByOpenId(openId);
   if (!user) throw new Error("Unable to create PIN client session");
   return user;
@@ -124,12 +132,14 @@ export async function savePortalMember(member: InsertPortalMember) {
   await db
     .insert(portalMembers)
     .values({ ...member, email, seatNumber })
-    .onDuplicateKeyUpdate({
+    .onConflictDoUpdate({
+      target: portalMembers.email,
       set: {
         name: member.name ?? null,
         title: member.title ?? null,
         status: member.status ?? "invited",
         seatNumber,
+        updatedAt: new Date(),
       },
     });
   return getPortalMemberByEmail(email);
@@ -179,11 +189,13 @@ export async function savePortalDecision(decision: InsertPortalDecision) {
   }
   const db = await getDb();
   if (!db) throw new Error("Database unavailable");
-  await db.insert(portalDecisions).values(decision).onDuplicateKeyUpdate({
+  await db.insert(portalDecisions).values(decision).onConflictDoUpdate({
+    target: [portalDecisions.userId, portalDecisions.area],
     set: {
       selection: decision.selection,
       note: decision.note ?? null,
       status: decision.status ?? "draft",
+      updatedAt: new Date(),
     },
   });
   return listPortalDecisionsForUser(decision.userId);

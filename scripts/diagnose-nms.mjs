@@ -8,6 +8,7 @@
  *   NMS_BASE_URL='https://mns-manus.vercel.app' node scripts/diagnose-nms.mjs
  *
  * The script never prints DATABASE_URL, JWT_SECRET, or cookie values.
+ * Deployment refresh marker: 2026-09-04.
  */
 
 const baseUrl = (process.env.NMS_BASE_URL || "https://mns-manus.vercel.app").replace(/\/$/, "");

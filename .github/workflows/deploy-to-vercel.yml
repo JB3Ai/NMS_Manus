@@ -55,23 +55,18 @@ jobs:
           project_info=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" "https://api.vercel.com/v8/projects/$VERCEL_PROJECT_ID")
           echo "Project info (raw):"
           echo "$project_info" | jq '.'
-
-          # Robustly extract the GitHub repo identifier that Vercel knows about
-          repoId=$(echo "$project_info" | jq -r '
-            if (.github? and (.github.org? and .github.repo?)) then (.github.org + "/" + .github.repo)
-            elif (.github? and .github.repo?) then (.github.repo)
-            elif (.gitRepository? and .gitRepository.provider? and .gitRepository.repo?) then (.gitRepository.provider + "/" + .gitRepository.repo)
-            elif (.repo? and (.repo | length) > 0) then .repo
-            else ""
-            end' )
-
-          if [ -z "$repoId" ] || [ "$repoId" = "/" ]; then
-            echo "Could not determine repoId from project info; falling back to REPO env: $REPO"
-            repoId="$REPO"
-          fi
-
-          echo "Using repoId for gitSource: $repoId"
-          echo "Triggering Vercel deployment for repo: $repoId branch: $BRANCH sha: $SHA target: $TARGET"
+   # Extract the GitHub repo identifier from project info
+           repoId=$(echo "$project_info" | jq -r '.link.repo // empty')
+           
+           if [ -z "$repoId" ]; then
+             echo "Could not determine repoId from project info"
+             echo "Full project info:"
+             echo "$project_info" | jq '.'
+             exit 1
+           fi
+           
+           echo "Using repoId for gitSource: $repoId"
+           echo "Triggering Vercel deployment for repo: $repoId branch: $BRANCH sha: $SHA target: $TARGET"
 
           project_name=$(echo "$project_info" | jq -r '.name // empty')
           if [ -z "$project_name" ]; then

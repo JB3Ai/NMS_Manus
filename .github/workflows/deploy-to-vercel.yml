@@ -1,0 +1,74 @@
+name: Deploy to Vercel
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to deploy'
+        required: true
+        default: 'main'
+      target:
+        description: 'Vercel target (production/preview)'
+        required: true
+        default: 'production'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Resolve commit SHA for branch
+        shell: bash
+        run: |
+          BRANCH="${{ inputs.branch }}"
+          echo "Fetching branch: $BRANCH"
+          git fetch origin "$BRANCH" --depth=1
+          SHA=$(git rev-parse FETCH_HEAD)
+          echo "Resolved SHA: $SHA"
+          echo "SHA=$SHA" >> $GITHUB_ENV
+
+      - name: Trigger Vercel deployment
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          BRANCH: ${{ inputs.branch }}
+          TARGET: ${{ inputs.target }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ env.SHA }}
+        run: |
+          set -euo pipefail
+          if [ -z "${VERCEL_TOKEN:-}" ] || [ -z "${VERCEL_PROJECT_ID:-}" ]; then
+            echo "VERCEL_TOKEN and VERCEL_PROJECT_ID must be set as repository secrets."
+            exit 1
+          fi
+          echo "Triggering Vercel deployment for repo: $REPO branch: $BRANCH sha: $SHA target: $TARGET"
+
+          payload=$(jq -n \
+            --arg repo "$REPO" \
+            --arg ref "$BRANCH" \
+            --arg sha "$SHA" \
+            --arg projectId "$VERCEL_PROJECT_ID" \
+            --arg target "$TARGET" \
+            '{gitSource: {type: "github", repoId: $repo, ref: $ref, sha: $sha}, project: $projectId, target: $target}')
+
+          echo "Payload: $payload"
+          resp=$(curl -s -X POST "https://api.vercel.com/v13/deployments" \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$payload")
+
+          echo "Vercel response: $resp"
+          url=$(echo "$resp" | jq -r '.url // empty') || true
+          if [ -n "$url" ]; then
+            echo "Deployment created: https://$url"
+          else
+            echo "No deployment URL returned. See response above for details."
+            exit 1
+          fi

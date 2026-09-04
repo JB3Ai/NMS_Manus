@@ -44,19 +44,32 @@ jobs:
           SHA: ${{ env.SHA }}
         run: |
           set -euo pipefail
+
           if [ -z "${VERCEL_TOKEN:-}" ] || [ -z "${VERCEL_PROJECT_ID:-}" ]; then
             echo "VERCEL_TOKEN and VERCEL_PROJECT_ID must be set as repository secrets."
             exit 1
           fi
+
+          echo "Resolving Vercel project name for project id: $VERCEL_PROJECT_ID"
+          project_info=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" "https://api.vercel.com/v8/projects/$VERCEL_PROJECT_ID")
+          project_name=$(echo "$project_info" | jq -r '.name // empty') || true
+
+          if [ -z "$project_name" ]; then
+            echo "Failed to resolve project name from Vercel API. Response:"
+            echo "$project_info"
+            exit 1
+          fi
+
+          echo "Project name: $project_name"
           echo "Triggering Vercel deployment for repo: $REPO branch: $BRANCH sha: $SHA target: $TARGET"
 
           payload=$(jq -n \
+            --arg name "$project_name" \
             --arg repo "$REPO" \
             --arg ref "$BRANCH" \
             --arg sha "$SHA" \
-            --arg projectId "$VERCEL_PROJECT_ID" \
             --arg target "$TARGET" \
-            '{gitSource: {type: "github", repoId: $repo, ref: $ref, sha: $sha}, project: $projectId, target: $target}')
+            '{name: $name, gitSource: {type: "github", repoId: $repo, ref: $ref, sha: $sha}, target: $target}')
 
           echo "Payload: $payload"
           resp=$(curl -s -X POST "https://api.vercel.com/v13/deployments" \

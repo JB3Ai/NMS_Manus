@@ -1,87 +1,56 @@
-name: Deploy to Vercel
+# (Replace the existing Trigger Vercel deployment step with this)
+- name: Trigger Vercel deployment
+  env:
+    VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    BRANCH: ${{ inputs.branch }}
+    TARGET: ${{ inputs.target }}
+    REPO: ${{ github.repository }}
+    SHA: ${{ env.SHA }}
+  run: |
+    set -euo pipefail
 
-on:
-  workflow_dispatch:
-    inputs:
-      branch:
-        description: 'Branch to deploy'
-        required: true
-        default: 'main'
-      target:
-        description: 'Vercel target (production/preview)'
-        required: true
-        default: 'production'
+    if [ -z "${VERCEL_TOKEN:-}" ] || [ -z "${VERCEL_PROJECT_ID:-}" ]; then
+      echo "VERCEL_TOKEN and VERCEL_PROJECT_ID must be set as repository secrets."
+      exit 1
+    fi
 
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
+    echo "Fetching Vercel project info for project id: $VERCEL_PROJECT_ID"
+    project_info=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" "https://api.vercel.com/v8/projects/$VERCEL_PROJECT_ID")
+    echo "Project info (raw):"
+    echo "$project_info" | jq '.'
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
+    # Try to extract repoId that Vercel knows about (try a few common fields)
+    repoId=""
+    repoId=$(echo "$project_info" | jq -r 'if .github and .github.org and .github.repo then (.github.org + "/" + .github.repo) elif .github and .github.repo then .github.repo elif .gitRepository and .gitRepository.org and .gitRepository.name then (.gitRepository.org + "/" + .gitRepository.name) elif .gitRepository and .gitRepository.name then .gitRepository.name else "" end' ) || true
 
-      - name: Resolve commit SHA for branch
-        shell: bash
-        run: |
-          BRANCH="${{ inputs.branch }}"
-          echo "Fetching branch: $BRANCH"
-          git fetch origin "$BRANCH" --depth=1
-          SHA=$(git rev-parse FETCH_HEAD)
-          echo "Resolved SHA: $SHA"
-          echo "SHA=$SHA" >> $GITHUB_ENV
+    if [ -z "$repoId" ] || [ "$repoId" = "/" ]; then
+      echo "Could not determine repoId from project info; falling back to REPO env: $REPO"
+      repoId="$REPO"
+    fi
 
-      - name: Trigger Vercel deployment
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          BRANCH: ${{ inputs.branch }}
-          TARGET: ${{ inputs.target }}
-          REPO: ${{ github.repository }}
-          SHA: ${{ env.SHA }}
-        run: |
-          set -euo pipefail
+    echo "Using repoId for gitSource: $repoId"
+    echo "Triggering Vercel deployment for repo: $repoId branch: $BRANCH sha: $SHA target: $TARGET"
 
-          if [ -z "${VERCEL_TOKEN:-}" ] || [ -z "${VERCEL_PROJECT_ID:-}" ]; then
-            echo "VERCEL_TOKEN and VERCEL_PROJECT_ID must be set as repository secrets."
-            exit 1
-          fi
+    payload=$(jq -n \
+      --arg name "$(echo "$project_info" | jq -r '.name // empty')" \
+      --arg repoId "$repoId" \
+      --arg ref "$BRANCH" \
+      --arg sha "$SHA" \
+      --arg target "$TARGET" \
+      '{name: $name, gitSource: {type: "github", repoId: $repoId, ref: $ref, sha: $sha}, target: $target}')
 
-          echo "Resolving Vercel project name for project id: $VERCEL_PROJECT_ID"
-          project_info=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" "https://api.vercel.com/v8/projects/$VERCEL_PROJECT_ID")
-          project_name=$(echo "$project_info" | jq -r '.name // empty') || true
+    echo "Payload: $payload"
+    resp=$(curl -s -X POST "https://api.vercel.com/v13/deployments" \
+      -H "Authorization: Bearer $VERCEL_TOKEN" \
+      -H "Content-Type: application/json" \
+      -d "$payload")
 
-          if [ -z "$project_name" ]; then
-            echo "Failed to resolve project name from Vercel API. Response:"
-            echo "$project_info"
-            exit 1
-          fi
-
-          echo "Project name: $project_name"
-          echo "Triggering Vercel deployment for repo: $REPO branch: $BRANCH sha: $SHA target: $TARGET"
-
-          payload=$(jq -n \
-            --arg name "$project_name" \
-            --arg repo "$REPO" \
-            --arg ref "$BRANCH" \
-            --arg sha "$SHA" \
-            --arg target "$TARGET" \
-            '{name: $name, gitSource: {type: "github", repoId: $repo, ref: $ref, sha: $sha}, target: $target}')
-
-          echo "Payload: $payload"
-          resp=$(curl -s -X POST "https://api.vercel.com/v13/deployments" \
-            -H "Authorization: Bearer $VERCEL_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d "$payload")
-
-          echo "Vercel response: $resp"
-          url=$(echo "$resp" | jq -r '.url // empty') || true
-          if [ -n "$url" ]; then
-            echo "Deployment created: https://$url"
-          else
-            echo "No deployment URL returned. See response above for details."
-            exit 1
-          fi
+    echo "Vercel response: $resp"
+    url=$(echo "$resp" | jq -r '.url // empty') || true
+    if [ -n "$url" ]; then
+      echo "Deployment created: https://$url"
+    else
+      echo "No deployment URL returned. See response above for details."
+      exit 1
+    fi

@@ -12,10 +12,6 @@ for (const variable of ["JWT_SECRET", "NMS_PORTAL_PIN"] as const) {
   }
 }
 
-if (!process.env.DATABASE_URL && !process.env.NMS_DATA_FILE) {
-  throw new Error("Configure either DATABASE_URL or NMS_DATA_FILE before the cPanel portal starts.");
-}
-
 function createStandaloneContext({ req, res }: CreateExpressContextOptions) {
   return { req, res, user: null };
 }

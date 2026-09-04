@@ -1,22 +1,20 @@
-# (Replace the existing Trigger Vercel deployment step with this)
-name: Trigger Vercel deployment
-  env:
+env:
     VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
     VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
     BRANCH: ${{ inputs.branch }}
     TARGET: ${{ inputs.target }}
     REPO: ${{ github.repository }}
     SHA: ${{ env.SHA }}
-  run: |
+ run: 
     set -euo pipefail
-
+    
     if [ -z "${VERCEL_TOKEN:-}" ] || [ -z "${VERCEL_PROJECT_ID:-}" ]; then
       echo "VERCEL_TOKEN and VERCEL_PROJECT_ID must be set as repository secrets."
       exit 1
     fi
 
     echo "Fetching Vercel project info for project id: $VERCEL_PROJECT_ID"
-    project_info=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" "https://api.vercel.com/v8/projects/$VERCEL_PROJECT_ID")
+    project_info=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" "https://api.vercel.com/v8/projects/$VERCEL_PROJECT_ID"
     echo "Project info (raw):"
     echo "$project_info" | jq '.'
 

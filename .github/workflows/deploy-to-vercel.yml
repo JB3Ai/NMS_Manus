@@ -1,4 +1,3 @@
-# (Replace the existing Trigger Vercel deployment step with this)
 name: Trigger Vercel deployment
 env:
     VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}

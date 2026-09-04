@@ -41,7 +41,7 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           BRANCH: ${{ inputs.branch }}
           TARGET: ${{ inputs.target }}
-          REPO: ${{ github.repository }}
+          REPO_ID: ${{ github.repository_id }}
           SHA: ${{ env.SHA }}
         run: |
           set -euo pipefail
@@ -56,18 +56,13 @@ jobs:
           echo "Project info (raw):"
           echo "$project_info" | jq '.'
 
-          # Extract the GitHub repo identifier from project info
-          repoId=$(echo "$project_info" | jq -r '.link.repo // empty')
-
-          if [ -z "$repoId" ]; then
-            echo "Could not determine repoId from project info"
-            echo "Full project info:"
-            echo "$project_info" | jq '.'
+          if [[ ! "$REPO_ID" =~ ^[0-9]+$ ]]; then
+            echo "GitHub repository ID is missing or invalid: $REPO_ID"
             exit 1
           fi
 
-          echo "Using repoId for gitSource: $repoId"
-          echo "Triggering Vercel deployment for repo: $repoId branch: $BRANCH sha: $SHA target: $TARGET"
+          echo "Using GitHub repository ID for gitSource: $REPO_ID"
+          echo "Triggering Vercel deployment for repo: $REPO_ID branch: $BRANCH sha: $SHA target: $TARGET"
 
           project_name=$(echo "$project_info" | jq -r '.name // empty')
           if [ -z "$project_name" ]; then
@@ -78,7 +73,7 @@ jobs:
 
           payload=$(jq -n \
             --arg name "$project_name" \
-            --arg repoId "$repoId" \
+            --argjson repoId "$REPO_ID" \
             --arg ref "$BRANCH" \
             --arg sha "$SHA" \
             --arg target "$TARGET" \

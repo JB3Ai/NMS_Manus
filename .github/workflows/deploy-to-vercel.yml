@@ -42,7 +42,7 @@ jobs:
           project_info=$(curl -fsS \
             -H "Authorization: Bearer $VERCEL_TOKEN" \
             "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID")
-          scope=$(echo "$project_info" | jq -r '.account.id // empty')
+          scope=$(echo "$project_info" | jq -r '.teamId // .account.id // .ownerId // empty')
           if [ -z "$scope" ]; then
             echo "Could not resolve the Vercel project scope."
             exit 1

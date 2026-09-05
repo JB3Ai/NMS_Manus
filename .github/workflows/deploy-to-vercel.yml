@@ -39,19 +39,9 @@ jobs:
             exit 1
           fi
 
-          project_info=$(curl -fsS \
-            -H "Authorization: Bearer $VERCEL_TOKEN" \
-            "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID")
-          scope=$(echo "$project_info" | jq -r '.teamId // .account.id // .ownerId // empty')
-          if [ -z "$scope" ]; then
-            echo "Could not resolve the Vercel project scope."
-            exit 1
-          fi
-
           npx --yes vercel@41.7.0 link \
             --yes \
             --project "$VERCEL_PROJECT_ID" \
-            --scope "$scope" \
             --token "$VERCEL_TOKEN"
 
           deploy_args=(--yes --token "$VERCEL_TOKEN")

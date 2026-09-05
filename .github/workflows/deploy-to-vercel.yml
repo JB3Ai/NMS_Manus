@@ -44,6 +44,8 @@ jobs:
             exit 1
           fi
 
+          rm -rf .vercel
+
           npx --yes vercel@41.7.0 link \
             --yes \
             --project "$VERCEL_PROJECT_ID" \

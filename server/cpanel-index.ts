@@ -20,7 +20,8 @@ function protectVaultFiles(req: Request, res: Response, next: () => void) {
   const extension = path.extname(req.path).toLowerCase();
   const isProtectedDocument = [".pdf", ".xlsx", ".docx", ".pptx", ".csv"].includes(extension);
   if (isProtectedDocument && !hasPinAccess(req)) {
-    res.status(401).send("Enter the NMS portal PIN before accessing this document.");
+    // Changed from plaintext to JSON response to prevent parsing errors
+    res.status(401).json({ error: "Enter the NMS portal PIN before accessing this document." });
     return;
   }
   next();
@@ -32,6 +33,14 @@ app.set("trust proxy", 1);
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
 app.get("/healthz", (_req, res) => res.json({ ok: true, service: "nms-executive-portal" }));
+
+// Add error handling middleware to ensure all errors return JSON
+app.use((err: any, req: Request, res: Response, next: () => void) => {
+  console.error('Unhandled error:', err);
+  if (!res.headersSent) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 const publicRoot = path.resolve(import.meta.dirname, "public");
 app.use("/manus-storage", protectVaultFiles, express.static(path.join(publicRoot, "manus-storage"), {

@@ -297,65 +297,6 @@ function DecisionCard({
   );
 }
 
-function PinLoginScreen({ onSuccess }: { onSuccess: () => void }) {
-  const [pin, setPin] = useState("");
-  const [confidentialityAccepted, setConfidentialityAccepted] = useState(false);
-  const login = trpc.pin.login.useMutation({
-    onSuccess: () => {
-      toast.success("Portal unlocked");
-      onSuccess();
-    },
-    onError: error => {
-      setPin("");
-      toast.error(error.message);
-    },
-  });
-
-  return (
-    <main className="min-h-screen grid lg:grid-cols-[1.05fr_.95fr] bg-background text-foreground">
-      <section className="relative order-2 lg:order-1 min-h-[52vh] lg:min-h-screen bg-cover bg-center" style={{ backgroundImage: `url('${appUrl("/manus-storage/nms-botanical-packaging_bdbd72ed.png")}')` }}>
-        <div className="absolute inset-0 hero-overlay" />
-        <div className="relative z-10 h-full flex flex-col justify-between p-7 sm:p-12 lg:p-16 text-white">
-          <div className="flex items-center gap-3">
-            <div className="h-11 w-11 border border-white/60 grid place-items-center font-bold tracking-[.18em]">NMS</div>
-            <div className="text-xs uppercase tracking-[.18em]">Executive renewal portal</div>
-          </div>
-          <div className="max-w-2xl py-16">
-            <p className="eyebrow text-white/75">Confidential working proposal · JB3AI × NMS</p>
-            <h1 className="display-title mt-5 text-5xl sm:text-6xl lg:text-7xl leading-[.96]">Heritage can open the story. Present-day proof must carry it.</h1>
-            <p className="mt-7 max-w-xl text-lg text-white/78 leading-8">A consolidated decision environment for the NMS leadership team—bringing corporate truth, portfolio choices, compliance, brand, digital commerce and investment gates into one controlled view.</p>
-          </div>
-          <p className="text-sm text-white/60">Truth before identity · Portfolio before platform · Compliance before promotion · Pilot before scale</p>
-        </div>
-      </section>
-      <section className="order-1 lg:order-2 flex items-center justify-center min-h-screen lg:min-h-0 p-7 sm:p-12 portal-grid">
-        <div className="w-full max-w-lg bg-card border border-border p-7 sm:p-10 soft-panel">
-          <LockKeyhole className="h-8 w-8 text-primary" />
-          <p className="eyebrow text-primary mt-8">Private client access</p>
-          <h2 className="display-title text-4xl mt-3">Review. Decide. Progress.</h2>
-          <p className="text-muted-foreground mt-5 leading-7">Enter the private access PIN supplied by JB3AI. A successful unlock opens the main executive proposal page.</p>
-          <form className="mt-8" onSubmit={event => { event.preventDefault(); login.mutate({ pin }); }}>
-            <label htmlFor="portal-pin" className="text-xs uppercase tracking-[.14em] font-bold text-muted-foreground">Access PIN</label>
-            <Input id="portal-pin" type="password" inputMode="numeric" autoComplete="current-password" autoFocus value={pin} onChange={event => setPin(event.target.value.replace(/\D/g, "").slice(0, 8))} placeholder="••••" className="mt-2 h-14 text-center text-2xl tracking-[.6em]" />
-            <label className="mt-4 border border-border bg-muted/45 p-4 flex items-start gap-3 cursor-pointer">
-              <input type="checkbox" checked={confidentialityAccepted} onChange={event => setConfidentialityAccepted(event.target.checked)} className="mt-1 h-4 w-4 accent-[var(--primary)]" />
-              <span className="text-xs text-muted-foreground leading-5"><strong className="text-foreground">Confidential-use acknowledgement.</strong> I am an authorised NMS reviewer and will not copy, reproduce, forward, screenshot, distribute or share this portal, its documents, videos or access PIN without written permission.</span>
-            </label>
-            <Button type="submit" size="lg" className="w-full mt-3 h-12" disabled={pin.length < 4 || !confidentialityAccepted || login.isPending}>
-              {login.isPending ? "Checking…" : "Unlock confidential portal"} <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </form>
-          <p className="mt-4 text-[11px] text-muted-foreground leading-5">Access is limited to the intended recipients. Activity in the document vault may be recorded for review-progress purposes.</p>
-          <div className="mt-7 pt-6 border-t border-border grid grid-cols-3 gap-4 text-center">
-            <div><p className="font-bold">3</p><p className="text-[11px] text-muted-foreground">seats</p></div>
-            <div><p className="font-bold">12</p><p className="text-[11px] text-muted-foreground">sources</p></div>
-            <div><p className="font-bold">1</p><p className="text-[11px] text-muted-foreground">master view</p></div>
-          </div>
-        </div>
-      </section>
-    </main>
-  );
-}
 
 export default function Home() {
   const { theme, setTheme, themes } = useTheme();
@@ -372,17 +313,15 @@ export default function Home() {
     }
   });
   const utils = trpc.useUtils();
-  const pinStatus = trpc.pin.status.useQuery(undefined, { retry: false, refetchOnWindowFocus: false });
   const vaultInput = useMemo(() => ({ reviewerId: reviewer?.id ?? "unassigned" }), [reviewer?.id]);
   const logout = trpc.pin.logout.useMutation({
     onSuccess: async () => {
-      await utils.pin.status.invalidate();
       utils.decisions.list.setData(undefined, undefined);
       utils.vault.list.setData(vaultInput, undefined);
     },
   });
-  const decisions = trpc.decisions.list.useQuery(undefined, { enabled: pinStatus.data?.authenticated === true });
-  const vault = trpc.vault.list.useQuery(vaultInput, { enabled: Boolean(pinStatus.data?.authenticated && reviewer), retry: false });
+  const decisions = trpc.decisions.list.useQuery(undefined, { enabled: true });
+  const vault = trpc.vault.list.useQuery(vaultInput, { enabled: Boolean(reviewer), retry: false });
   const decisionMap = useMemo(() => new Map((decisions.data ?? []).map(item => [item.area, item])), [decisions.data]);
   const vaultReviewMap = useMemo(() => new Map((vault.data?.reviews ?? []).map(item => [item.documentId, item])), [vault.data?.reviews]);
   const vaultDocuments = vault.data?.documents ?? [];
@@ -412,9 +351,6 @@ export default function Home() {
     if (action === "close") setVaultOpen(false);
     if (action === "logout") logout.mutate();
   };
-
-  if (pinStatus.isLoading) return <div className="min-h-screen grid place-items-center bg-background"><Leaf className="h-8 w-8 text-primary animate-pulse" /></div>;
-  if (!pinStatus.data?.authenticated) return <PinLoginScreen onSuccess={() => pinStatus.refetch()} />;
 
   return (
     <div className="min-h-screen bg-background text-foreground">

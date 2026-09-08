@@ -4,9 +4,8 @@ import { createServer } from "http";
 import path from "path";
 import { createExpressMiddleware, type CreateExpressContextOptions } from "@trpc/server/adapters/express";
 import { appRouter } from "./routers";
-import { hasPinAccess } from "./pinAccess";
 
-for (const variable of ["JWT_SECRET", "NMS_PORTAL_PIN"] as const) {
+for (const variable of ["JWT_SECRET"] as const) {
   if (!process.env[variable]) {
     throw new Error(`${variable} must be configured before the cPanel portal starts.`);
   }
@@ -19,9 +18,9 @@ function createStandaloneContext({ req, res }: CreateExpressContextOptions) {
 function protectVaultFiles(req: Request, res: Response, next: () => void) {
   const extension = path.extname(req.path).toLowerCase();
   const isProtectedDocument = [".pdf", ".xlsx", ".docx", ".pptx", ".csv"].includes(extension);
-  if (isProtectedDocument && !hasPinAccess(req)) {
-    // Changed from plaintext to JSON response to prevent parsing errors
-    res.status(401).json({ error: "Enter the NMS portal PIN before accessing this document." });
+  if (isProtectedDocument) {
+    // Remove PIN protection - documents are now publicly accessible
+    next();
     return;
   }
   next();

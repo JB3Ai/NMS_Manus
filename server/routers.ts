@@ -3,8 +3,8 @@ import { vaultDocuments } from "@shared/vaultDocuments";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import {
-  getOrCreatePinClientUser,
   listDocumentReviews,
+  listPortalDecisions,
   listPortalDecisionsForUser,
   recordDocumentReview,
   savePortalDecision,
@@ -32,8 +32,7 @@ export const appRouter = router({
   }),
   decisions: router({
     list: publicProcedure.query(async () => {
-      const user = await getOrCreatePinClientUser();
-      return listPortalDecisionsForUser(user.id);
+      return listPortalDecisions();
     }),
     save: publicProcedure
       .input(
@@ -45,8 +44,10 @@ export const appRouter = router({
         }),
       )
       .mutation(async ({ input }) => {
-        const user = await getOrCreatePinClientUser();
-        return savePortalDecision({ userId: user.id, ...input });
+        // For now, we'll use a fixed user ID for simplicity
+        // In a real implementation, this would be tied to the authenticated user
+        const userId = 1;
+        return savePortalDecision({ userId, ...input });
       }),
   }),
   vault: router({

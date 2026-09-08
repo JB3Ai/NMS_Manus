@@ -77,28 +77,6 @@ export async function getUserByOpenId(openId: string) {
   return result[0];
 }
 
-export async function getOrCreatePinClientUser() {
-  if (isFileStoreEnabled()) return { id: 1 };
-  const db = await getDb();
-  if (!db) throw new Error("Database unavailable");
-  const openId = "nms-pin-client";
-  await db
-    .insert(users)
-    .values({
-      openId,
-      name: "NMS Client Access",
-      loginMethod: "pin",
-      role: "user",
-      lastSignedIn: new Date(),
-    })
-    .onConflictDoUpdate({
-      target: users.openId,
-      set: { lastSignedIn: new Date(), updatedAt: new Date() },
-    });
-  const user = await getUserByOpenId(openId);
-  if (!user) throw new Error("Unable to create PIN client session");
-  return user;
-}
 
 export async function getPortalMemberByEmail(email: string) {
   const db = await getDb();

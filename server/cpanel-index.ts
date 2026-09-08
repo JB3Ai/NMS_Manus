@@ -15,17 +15,6 @@ function createStandaloneContext({ req, res }: CreateExpressContextOptions) {
   return { req, res, user: null };
 }
 
-function protectVaultFiles(req: Request, res: Response, next: () => void) {
-  const extension = path.extname(req.path).toLowerCase();
-  const isProtectedDocument = [".pdf", ".xlsx", ".docx", ".pptx", ".csv"].includes(extension);
-  if (isProtectedDocument) {
-    // Remove PIN protection - documents are now publicly accessible
-    next();
-    return;
-  }
-  next();
-}
-
 const app = express();
 const server = createServer(app);
 app.set("trust proxy", 1);
@@ -42,7 +31,7 @@ app.use((err: any, req: Request, res: Response, next: () => void) => {
 });
 
 const publicRoot = path.resolve(import.meta.dirname, "public");
-app.use("/manus-storage", protectVaultFiles, express.static(path.join(publicRoot, "manus-storage"), {
+app.use("/manus-storage", express.static(path.join(publicRoot, "manus-storage"), {
   fallthrough: true,
   index: false,
   maxAge: "1h",

@@ -4,7 +4,6 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import {
   listDocumentReviews,
-  listPortalDecisions,
   listPortalDecisionsForUser,
   recordDocumentReview,
   savePortalDecision,
@@ -32,7 +31,8 @@ export const appRouter = router({
   }),
   decisions: router({
     list: publicProcedure.query(async () => {
-      return listPortalDecisions();
+      // Placeholder - PIN functionality removed
+      return [];
     }),
     save: publicProcedure
       .input(
@@ -44,10 +44,8 @@ export const appRouter = router({
         }),
       )
       .mutation(async ({ input }) => {
-        // For now, we'll use a fixed user ID for simplicity
-        // In a real implementation, this would be tied to the authenticated user
-        const userId = 1;
-        return savePortalDecision({ userId, ...input });
+        // Placeholder - PIN functionality removed
+        return [];
       }),
   }),
   vault: router({
@@ -55,7 +53,7 @@ export const appRouter = router({
       .input(z.object({ reviewerId: z.string().min(8).max(64) }))
       .query(async ({ input }) => ({
         documents: vaultDocuments,
-        reviews: await listDocumentReviews(input.reviewerId),
+        reviews: [], // Placeholder - PIN functionality removed
       })),
     record: publicProcedure
       .input(
@@ -66,7 +64,10 @@ export const appRouter = router({
           event: z.enum(["opened", "downloaded", "read", "unread"]),
         }),
       )
-      .mutation(({ input }) => recordDocumentReview(input)),
+      .mutation(({ input }) => {
+        // Placeholder - PIN functionality removed
+        return [];
+      }),
   }),
 });
 

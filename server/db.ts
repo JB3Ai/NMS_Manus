@@ -1,10 +1,11 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, desc } from "drizzle-orm";
 import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
 import {
   InsertPortalDecision,
   InsertPortalMember,
   InsertUser,
+  documentActivity,
   documentReviews,
   portalDecisions,
   portalMembers,
@@ -227,4 +228,92 @@ export async function recordDocumentReview(input: {
     });
   }
   return listDocumentReviews(input.reviewerId);
+}
+
+export async function recordDocumentActivity(input: {
+  userId: string;
+  documentId: string;
+  eventType: "opened" | "viewed" | "downloaded" | "read" | "unread";
+  userAgent?: string;
+  ipHash?: string;
+  metadata?: Record<string, unknown>;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  
+  // Only record activity for valid document IDs
+  const validDocumentIds = vaultDocuments.map(doc => doc.id);
+  if (!validDocumentIds.includes(input.documentId)) {
+    throw new Error("Invalid document ID");
+  }
+  
+  // Record the activity
+  await db.insert(documentActivity).values({
+    userId: input.userId,
+    documentId: input.documentId,
+    eventType: input.eventType,
+    userAgent: input.userAgent ?? null,
+    ipHash: input.ipHash ?? null,
+    metadata: input.metadata ? JSON.stringify(input.metadata) : null,
+  });
+  
+  return true;
+}
+
+export async function getDocumentActivitySummary(userId: string, documentId: string) {
+  const db = await getDb();
+  if (!db) return null;
+  
+  // Get the activity summary for a specific user and document
+  const result = await db
+    .select({
+      documentId: documentActivity.documentId,
+      userId: documentActivity.userId,
+      eventType: documentActivity.eventType,
+      occurredAt: documentActivity.occurredAt,
+    })
+    .from(documentActivity)
+    .where(and(
+      eq(documentActivity.userId, userId),
+      eq(documentActivity.documentId, documentId)
+    ))
+    .orderBy(desc(documentActivity.occurredAt));
+    
+  return result;
+}
+
+export async function getUserDocumentActivity(userId: string) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  // Get all activity for a specific user
+  const result = await db
+    .select({
+      documentId: documentActivity.documentId,
+      eventType: documentActivity.eventType,
+      occurredAt: documentActivity.occurredAt,
+    })
+    .from(documentActivity)
+    .where(eq(documentActivity.userId, userId))
+    .orderBy(desc(documentActivity.occurredAt));
+    
+  return result;
+}
+
+export async function getDocumentActivitySummaryByDocument(documentId: string) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  // Get activity summary for a specific document
+  const result = await db
+    .select({
+      userId: documentActivity.userId,
+      eventType: documentActivity.eventType,
+      occurredAt: documentActivity.occurredAt,
+    })
+    .from(documentActivity)
+    .where(eq(documentActivity.documentId, documentId))
+    .orderBy(desc(documentActivity.occurredAt));
+    
+  return result;
 }

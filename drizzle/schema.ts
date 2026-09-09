@@ -7,6 +7,7 @@ import {
   timestamp,
   uniqueIndex,
   varchar,
+  jsonb,
 } from "drizzle-orm/pg-core";
 
 const userRole = pgEnum("user_role", ["user", "admin"]);
@@ -73,6 +74,25 @@ export const documentReviews = pgTable(
   table => [uniqueIndex("document_reviewer_unique").on(table.reviewerId, table.documentId)],
 );
 
+export const documentActivity = pgTable(
+  "document_activity",
+  {
+    id: serial("id").primaryKey(),
+    documentId: varchar("documentId", { length: 100 }).notNull(),
+    userId: varchar("userId", { length: 64 }).notNull(),
+    eventType: varchar("eventType", { length: 20 }).notNull(),
+    occurredAt: timestamp("occurredAt").defaultNow().notNull(),
+    userAgent: text("userAgent"),
+    ipHash: varchar("ipHash", { length: 64 }),
+    metadata: jsonb("metadata"),
+  },
+  table => [
+    uniqueIndex("document_activity_user_document_unique").on(table.userId, table.documentId),
+    index("document_activity_document_event_idx").on(table.documentId, table.eventType),
+    index("document_activity_occurred_at_idx").on(table.occurredAt),
+  ],
+);
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 export type PortalMember = typeof portalMembers.$inferSelect;
@@ -81,3 +101,5 @@ export type PortalDecision = typeof portalDecisions.$inferSelect;
 export type InsertPortalDecision = typeof portalDecisions.$inferInsert;
 export type DocumentReview = typeof documentReviews.$inferSelect;
 export type InsertDocumentReview = typeof documentReviews.$inferInsert;
+export type DocumentActivity = typeof documentActivity.$inferSelect;
+export type InsertDocumentActivity = typeof documentActivity.$inferInsert;

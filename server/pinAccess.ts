@@ -1,7 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { COOKIE_NAME } from "@shared/const";
 import type { NextFunction, Request, Response } from "express";
-import cookie from "cookie";
+import { parse as parseCookie, serialize as serializeCookie } from "cookie";
 import { jwtVerify, SignJWT } from "jose";
 import { getSessionCookieOptions } from "./_core/cookies";
 
@@ -20,7 +20,7 @@ function getCookieHeader(req: Request) {
 }
 
 function getCookie(req: Request) {
-  const value = cookie.parse(getCookieHeader(req))[NMS_PIN_COOKIE];
+  const value = parseCookie(getCookieHeader(req))[NMS_PIN_COOKIE];
   return typeof value === "string" ? value : null;
 }
 
@@ -75,7 +75,7 @@ export async function setPinAccessCookie(req: Request, res: Response) {
     .setExpirationTime(NMS_PIN_TTL)
     .sign(secret);
 
-  res.setHeader("Set-Cookie", cookie.serialize(NMS_PIN_COOKIE, token, {
+  res.setHeader("Set-Cookie", serializeCookie(NMS_PIN_COOKIE, token, {
     ...cookieOptions(req),
     maxAge: 60 * 60 * 24 * 30,
   }));
@@ -95,7 +95,7 @@ export function clearGenericSessionCookie(req: Request, res: Response) {
     return;
   }
 
-  res.setHeader("Set-Cookie", cookie.serialize(COOKIE_NAME, "", options));
+  res.setHeader("Set-Cookie", serializeCookie(COOKIE_NAME, "", options));
 }
 
 export function clearPinAccessCookie(req: Request, res: Response) {
@@ -105,7 +105,7 @@ export function clearPinAccessCookie(req: Request, res: Response) {
   };
 
   if (typeof res.setHeader === "function") {
-    res.setHeader("Set-Cookie", cookie.serialize(NMS_PIN_COOKIE, "", options));
+    res.setHeader("Set-Cookie", serializeCookie(NMS_PIN_COOKIE, "", options));
     return;
   }
 

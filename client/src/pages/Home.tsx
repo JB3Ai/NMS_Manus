@@ -64,6 +64,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 type DecisionStatus = "draft" | "approved" | "needs_discussion";
+type DecisionRecord = { area: string; selection: string; note: string | null; status: DecisionStatus };
 type VaultReviewer = { id: string; name: string };
 type VaultDocument = { id: string; title: string; filename: string; type: string; size: string; category: string; description: string; url: string };
 type VaultReview = { documentId: string; openedAt: Date | null; downloadedAt: Date | null; readAt: Date | null };
@@ -108,7 +109,7 @@ function VideoShowcase() {
               {activeVideo?.id === video.id ? (
                 <div className="w-full h-full flex items-center justify-center">
                   <iframe
-                    src={video.url}
+                    src={`https://www.youtube.com/embed/${video.id}`}
                     title={video.title}
                     className="w-full h-full rounded-lg"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -125,7 +126,7 @@ function VideoShowcase() {
               )}
             </div>
             <h3 className="text-xl font-semibold mb-2">{video.title}</h3>
-            <p className="text-sm text-muted-foreground">{video.description}</p>
+            <p className="text-sm text-muted-foreground">{video.subtitle}</p>
           </article>
         ))}
       </div>
@@ -178,11 +179,11 @@ function ProductFeatures() {
           <article key={index} className="border border-white/15 p-6 bg-card/50">
             <div className="flex items-start gap-4">
               <div className="h-10 w-10 bg-primary text-primary-foreground grid place-items-center rounded-md flex-shrink-0">
-                {item.icon}
+                <PackageCheck className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-xl font-semibold">{item.title}</h3>
-                <p className="mt-2 text-muted-foreground">{item.description}</p>
+                <h3 className="text-xl font-semibold">{item.name}</h3>
+                <p className="mt-2 text-muted-foreground">{item.detail}</p>
               </div>
             </div>
           </article>
@@ -205,7 +206,7 @@ function ComplianceFramework() {
           <article key={index} className="border border-border p-7 bg-card">
             <ShieldCheck className="h-7 w-7 text-primary" />
             <h3 className="text-xl font-semibold mt-6">{layer.title}</h3>
-            <p className="mt-4 text-muted-foreground">{layer.description}</p>
+            <p className="mt-4 text-muted-foreground">{layer.text}</p>
           </article>
         ))}
       </div>
@@ -226,11 +227,11 @@ function EngagementModel() {
           <article key={index} className="border border-white/15 p-6 bg-card/50">
             <div className="flex items-start gap-4">
               <div className="h-10 w-10 bg-primary text-primary-foreground grid place-items-center rounded-md flex-shrink-0">
-                {flow.icon}
+                <MessageCircle className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-xl font-semibold">{flow.title}</h3>
-                <p className="mt-2 text-muted-foreground">{flow.description}</p>
+                <h3 className="text-xl font-semibold">{flow.channel}</h3>
+                <p className="mt-2 text-muted-foreground">{flow.steps}</p>
               </div>
             </div>
           </article>
@@ -253,11 +254,11 @@ function MarketingChannels() {
           <article key={index} className="border border-border p-7 bg-card">
             <div className="flex items-start gap-4">
               <div className="h-10 w-10 bg-primary text-primary-foreground grid place-items-center rounded-md flex-shrink-0">
-                {channel.icon}
+                <Store className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-xl font-semibold">{channel.title}</h3>
-                <p className="mt-4 text-muted-foreground">{channel.description}</p>
+                <h3 className="text-xl font-semibold">{channel.name}</h3>
+                <p className="mt-4 text-muted-foreground">{channel.role}</p>
               </div>
             </div>
           </article>
@@ -280,11 +281,11 @@ function RiskAssessment() {
           <article key={index} className="border border-white/15 p-6 bg-card/50">
             <div className="flex items-start gap-4">
               <div className="h-10 w-10 bg-primary text-primary-foreground grid place-items-center rounded-md flex-shrink-0">
-                {risk.icon}
+                <AlertTriangle className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-xl font-semibold">{risk.title}</h3>
-                <p className="mt-2 text-muted-foreground">{risk.description}</p>
+                <h3 className="text-xl font-semibold">{risk[0]}</h3>
+                <p className="mt-2 text-muted-foreground">{risk[1]} — {risk[2]}</p>
               </div>
             </div>
           </article>
@@ -389,8 +390,8 @@ function DecisionCard({
               <option value="approved">Approved</option>
             </select>
           </div>
-          <Button type="submit" disabled={mutation.isLoading}>
-            {mutation.isLoading ? "Saving..." : "Save Decision"}
+          <Button type="submit" disabled={mutation.isPending}>
+            {mutation.isPending ? "Saving..." : "Save Decision"}
           </Button>
         </div>
       </form>
@@ -418,33 +419,21 @@ export default function Home() {
   // Removed PIN-related trpc calls and authentication logic
   const decisions = trpc.decisions.list.useQuery(undefined, { enabled: true });
   const vault = trpc.vault.list.useQuery(vaultInput, { enabled: Boolean(reviewer), retry: false });
-  const decisionMap = useMemo(() => new Map((decisions.data ?? []).map(item => [item.area, item])), [decisions.data]);
+  const logout = trpc.nmsAccess.logout.useMutation({
+    onSuccess: () => {
+      localStorage.removeItem("nms-vault-reviewer");
+      window.location.reload();
+    },
+    onError: error => toast.error(error.message),
+  });
+  const decisionRows = (decisions.data ?? []) as DecisionRecord[];
+  const decisionMap = useMemo(() => new Map(decisionRows.map(item => [item.area, item])), [decisions.data]);
   const vaultReviewMap = useMemo(() => new Map((vault.data?.reviews ?? []).map(item => [item.documentId, item])), [vault.data?.reviews]);
-  const vaultDocuments = vault.data?.documents ?? [];
+  const vaultDocuments = [...(vault.data?.documents ?? [])] as VaultDocument[];
   const vaultProgress = useMemo(() => calculateVaultProgress(vaultDocuments.map(document => document.id), vault.data?.reviews ?? []), [vaultDocuments, vault.data?.reviews]);
   const { remainingDownloads, remainingReads, remainingDocuments, completed: reviewedDocuments } = vaultProgress;
   const recordVaultEventMutation = trpc.vault.record.useMutation({
-    onSuccess: (_result, variables) => {
-      const now = new Date();
-      utils.vault.list.setData(vaultInput, prev => {
-        if (!prev) return prev;
-
-        const updatedReviews = [...prev.reviews];
-        const existingIndex = updatedReviews.findIndex(review => review.documentId === variables.documentId);
-        const existingReview = existingIndex >= 0 ? updatedReviews[existingIndex] : undefined;
-        const nextReview = {
-          documentId: variables.documentId,
-          openedAt: variables.event === "opened" || variables.event === "downloaded" ? now : existingReview?.openedAt ?? null,
-          downloadedAt: variables.event === "downloaded" ? now : existingReview?.downloadedAt ?? null,
-          readAt: variables.event === "unread" ? null : variables.event === "read" ? now : existingReview?.readAt ?? null,
-        };
-
-        if (existingIndex >= 0) updatedReviews[existingIndex] = nextReview;
-        else updatedReviews.push(nextReview);
-
-        return { ...prev, reviews: updatedReviews };
-      });
-    },
+    onSuccess: () => void utils.vault.list.invalidate(vaultInput),
     onError: error => toast.error(error.message),
   });
 
@@ -464,17 +453,14 @@ export default function Home() {
   const requestLogout = () => {
     if (reviewer && vaultDocuments.length > 0 && remainingDocuments > 0) setReminderAction("logout");
     else {
-      // Removed PIN logout logic - now just clears reviewer
-      localStorage.removeItem("nms-vault-reviewer");
-      setReviewer(null);
+      logout.mutate();
     }
   };
   const confirmReminderAction = () => {
     const action = reminderAction;
     setReminderAction(null);
     if (action === "logout") {
-      localStorage.removeItem("nms-vault-reviewer");
-      setReviewer(null);
+      logout.mutate();
     } else if (action === "close") {
       setVaultOpen(false);
     }
@@ -500,19 +486,10 @@ export default function Home() {
   const loading = !reviewer || !decisions.data || !vault.data;
 
   const progress = useMemo(() => ({
-    opened: vaultProgress.completed.filter(id => {
-      const review = vaultReviewMap.get(id);
-      return review?.openedAt;
-    }).length,
-    downloaded: vaultProgress.completed.filter(id => {
-      const review = vaultReviewMap.get(id);
-      return review?.downloadedAt;
-    }).length,
-    read: vaultProgress.completed.filter(id => {
-      const review = vaultReviewMap.get(id);
-      return review?.readAt;
-    }).length,
-  }), [vaultProgress, vaultReviewMap]);
+    opened: vaultProgress.opened,
+    downloaded: vaultProgress.downloaded,
+    read: vaultProgress.read,
+  }), [vaultProgress]);
 
   const documents = vaultDocuments.sort((a, b) => {
     const aIndex = complianceLayers.findIndex(layer => layer.title === a.category);
@@ -545,13 +522,13 @@ export default function Home() {
             
             <div className="hidden md:flex items-center gap-4">
               <nav className="flex items-center gap-6">
-                {navigation.map((item, index) => (
+                {navigation.map(([href, label], index) => (
                   <a
                     key={index}
-                    href={item.href}
+                    href={`#${href}`}
                     className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    {item.label}
+                    {label}
                   </a>
                 ))}
               </nav>
@@ -586,14 +563,14 @@ export default function Home() {
         {mobileNav && (
           <div className="md:hidden border-t border-border">
             <div className="container mx-auto px-4 py-4 flex flex-col gap-4">
-              {navigation.map((item, index) => (
+              {navigation.map(([href, label], index) => (
                 <a
                   key={index}
-                  href={item.href}
+                  href={`#${href}`}
                   className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-2"
                   onClick={() => setMobileNav(false)}
                 >
-                  {item.label}
+                  {label}
                 </a>
               ))}
               <div className="pt-4 border-t border-border">

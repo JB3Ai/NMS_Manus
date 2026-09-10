@@ -244,7 +244,7 @@ export async function recordDocumentActivity(input: {
   
   // Only record activity for valid document IDs
   const validDocumentIds = vaultDocuments.map(doc => doc.id);
-  if (!validDocumentIds.includes(input.documentId)) {
+  if (!validDocumentIds.some(id => id === input.documentId)) {
     throw new Error("Invalid document ID");
   }
   

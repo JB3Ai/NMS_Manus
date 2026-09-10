@@ -1,5 +1,3 @@
-import { appUrl } from "@/lib/appUrl";
-
 export const navigation = [
   ["overview", "Overview"],
   ["vault", "Document vault"],
@@ -26,7 +24,7 @@ export const proposalVideos = [
     executiveTitle: "Digital Growth & Commerce Relaunch",
     subtitle: "Operating model for the website, social channels, CRM, customer service and gated online ordering.",
     duration: "≈ 7 min",
-    thumbnail: appUrl("/manus-storage/digital-operating-system_47235c4f.jpg"),
+    thumbnail: "https://img.youtube.com/vi/sg7f5TGbeno/hqdefault.jpg",
     status: "Available",
   },
   {
@@ -36,7 +34,7 @@ export const proposalVideos = [
     executiveTitle: "90-Day Transformation Plan",
     subtitle: "Decision gates, executive ownership, early priorities and milestones for the first delivery sprint.",
     duration: "≈ 5 min",
-    thumbnail: appUrl("/manus-storage/transformation-blueprint_b82d4b14.jpg"),
+    thumbnail: "https://img.youtube.com/vi/RncAWK7UVHk/hqdefault.jpg",
     status: "Available",
   },
   {
@@ -46,7 +44,7 @@ export const proposalVideos = [
     executiveTitle: "Heritage, Proof & Brand Risk",
     subtitle: "How to preserve the 1934 heritage story while controlling evidence, claims and reputation risk.",
     duration: "≈ 5 min",
-    thumbnail: appUrl("/manus-storage/heritage-trap_b2eb5dbf.jpg"),
+    thumbnail: "https://img.youtube.com/vi/A1k4S4FmYG4/hqdefault.jpg",
     status: "Available",
   },
 ] as const;

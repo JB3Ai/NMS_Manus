@@ -50,8 +50,10 @@ describe("isolated cPanel file store", () => {
     expect(reviews[0]?.downloadedAt).toBeInstanceOf(Date);
     expect(reviews[0]?.readAt).toBeInstanceOf(Date);
 
-    const mode = (await stat(process.env.NMS_DATA_FILE!)).mode & 0o777;
-    expect(mode).toBe(0o600);
+    if (process.platform !== "win32") {
+      const mode = (await stat(process.env.NMS_DATA_FILE!)).mode & 0o777;
+      expect(mode).toBe(0o600);
+    }
     expect(JSON.parse(await readFile(process.env.NMS_DATA_FILE!, "utf8")).reviews).toHaveLength(1);
   });
 });

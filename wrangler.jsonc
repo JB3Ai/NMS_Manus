@@ -2,10 +2,17 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "nms-manus",
   "compatibility_date": "2026-09-08",
+  "main": "./worker/index.ts",
   "observability": {
     "enabled": true
   },
   "assets": {
+    "binding": "ASSETS",
+    "run_worker_first": [
+      "/api/*",
+      "/healthz",
+      "/manus-storage/*"
+    ],
     "not_found_handling": "single-page-application"
   }
 }

@@ -151,10 +151,43 @@ function vitePluginManusDebugCollector(): Plugin {
   };
 }
 
+const NMS_DOCUMENTS = [
+  ["docs/0Natural_Medicinal_Services_(NMS).pdf", "Natural_Medicinal_Services_(NMS)_2c5b957b.pdf"],
+  ["docs/11NMS_Budget_and_ROI_Selector.xlsx", "NMS_Budget_and_ROI_Selector_27747512.xlsx"],
+  ["docs/3NMS_Relaunch_Strategy_ProposalV2.pdf", "NMS_Relaunch_Strategy_Proposal_235b3231.pdf"],
+  ["docs/2NMS_Product_Catalog_Packaging_Stakeholder_Review.pdf", "NMS_Product_Catalog_Packaging_Stakeholder_Review_f8543e25.pdf"],
+  ["docs/4NMS PRODUCT CATALOG.pdf", "product catalog draft V1_f027c744.pdf"],
+  ["docs/6Complete Implementation & Project Management Plan.pdf", "Complete Implementation & Project Management Plan_3c3dc2d0.pdf"],
+  ["docs/8NMS_Standard_Typography_and_Asset_Specification.pdf", "NMS_Standard_Typography_and_Asset_Specification_bcf82a27.pdf"],
+  ["docs/5NMS_Logo_Strategy_BrainstormVER2.pdf", "NMS_Logo_Strategy_BrainstormJB3_6a622bf4.pdf"],
+] as const;
+
+function vitePluginNmsDocuments(): Plugin {
+  return {
+    name: "nms-controlled-documents",
+    apply: "build",
+    applyToEnvironment(environment) {
+      return environment.name === "client";
+    },
+    generateBundle() {
+      for (const [sourcePath, outputName] of NMS_DOCUMENTS) {
+        this.emitFile({
+          type: "asset",
+          fileName: `manus-storage/${outputName}`,
+          source: fs.readFileSync(path.resolve(PROJECT_ROOT, sourcePath)),
+        });
+      }
+    },
+  };
+}
+
 const plugins = [
   react(),
   tailwindcss(),
-  cloudflare(),
+  vitePluginNmsDocuments(),
+  cloudflare({
+    configPath: path.resolve(import.meta.dirname, "wrangler.jsonc"),
+  }),
   jsxLocPlugin(),
   vitePluginManusRuntime(),
   vitePluginManusDebugCollector(),

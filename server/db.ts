@@ -11,6 +11,7 @@ import {
   portalMembers,
   users,
 } from "../drizzle/schema";
+import { vaultDocuments } from "@shared/vaultDocuments";
 import { ENV } from "./_core/env";
 import {
   isFileStoreEnabled,

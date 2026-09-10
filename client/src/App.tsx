@@ -4,13 +4,14 @@ import { applicationBase } from "@/lib/appUrl";
 import NotFound from "@/pages/NotFound";
 import { Route, Router as WouterRouter, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
+import NmsAccessGate from "./components/NmsAccessGate";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Home} />
+      <Route path="/" component={() => <NmsAccessGate><Home /></NmsAccessGate>} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

@@ -423,6 +423,30 @@ export default function Home() {
   const vaultDocuments = vault.data?.documents ?? [];
   const vaultProgress = useMemo(() => calculateVaultProgress(vaultDocuments.map(document => document.id), vault.data?.reviews ?? []), [vaultDocuments, vault.data?.reviews]);
   const { remainingDownloads, remainingReads, remainingDocuments, completed: reviewedDocuments } = vaultProgress;
+  const recordVaultEventMutation = trpc.vault.record.useMutation({
+    onSuccess: (_result, variables) => {
+      const now = new Date();
+      utils.vault.list.setData(vaultInput, prev => {
+        if (!prev) return prev;
+
+        const updatedReviews = [...prev.reviews];
+        const existingIndex = updatedReviews.findIndex(review => review.documentId === variables.documentId);
+        const existingReview = existingIndex >= 0 ? updatedReviews[existingIndex] : undefined;
+        const nextReview = {
+          documentId: variables.documentId,
+          openedAt: variables.event === "opened" || variables.event === "downloaded" ? now : existingReview?.openedAt ?? null,
+          downloadedAt: variables.event === "downloaded" ? now : existingReview?.downloadedAt ?? null,
+          readAt: variables.event === "unread" ? null : variables.event === "read" ? now : existingReview?.readAt ?? null,
+        };
+
+        if (existingIndex >= 0) updatedReviews[existingIndex] = nextReview;
+        else updatedReviews.push(nextReview);
+
+        return { ...prev, reviews: updatedReviews };
+      });
+    },
+    onError: error => toast.error(error.message),
+  });
 
   const saveReviewer = (name: string) => {
     const next = { id: crypto.randomUUID(), name };
@@ -458,48 +482,16 @@ export default function Home() {
 
   const recordEvent = (documentId: string, event: "opened" | "downloaded" | "read" | "unread") => {
     if (!reviewer) return;
-    
-    const review = vaultReviewMap.get(documentId);
-    const now = new Date();
-    
-    const update = {
-      documentId,
+    recordVaultEventMutation.mutate({
       reviewerId: reviewer.id,
-      [event]: event === "unread" ? null : now,
-    };
-    
-    trpc.vault.update.useMutation().mutate(update, {
-      onSuccess: () => {
-        utils.vault.list.setData(vaultInput, prev => {
-          if (!prev) return prev;
-          
-          const updatedReviews = [...prev.reviews];
-          const existingIndex = updatedReviews.findIndex(r => r.documentId === documentId);
-          
-          if (existingIndex >= 0) {
-            updatedReviews[existingIndex] = {
-              ...updatedReviews[existingIndex],
-              [event]: event === "unread" ? null : now,
-            };
-          } else {
-            updatedReviews.push({
-              documentId,
-              openedAt: event === "opened" ? now : null,
-              downloadedAt: event === "downloaded" ? now : null,
-              readAt: event === "read" ? now : null,
-            });
-          }
-          
-          return {
-            ...prev,
-            reviews: updatedReviews,
-          };
-        });
-      },
+      reviewerName: reviewer.name,
+      documentId,
+      event,
     });
   };
 
   const previewPdf = (document: VaultDocument) => {
+    recordEvent(document.id, "opened");
     setPreviewDocument(document);
   };
 

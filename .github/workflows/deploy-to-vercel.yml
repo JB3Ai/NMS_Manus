@@ -35,8 +35,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [ -z "${VERCEL_TOKEN:-}" ] || [ -z "${VERCEL_PROJECT_ID:-}" ]; then
-            echo "VERCEL_TOKEN and VERCEL_PROJECT_ID must be set as repository secrets."
+          if [ -z "${VERCEL_TOKEN:-}" ] || [ -z "${VERCEL_ORG_ID:-}" ] || [ -z "${VERCEL_PROJECT_ID:-}" ]; then
+            echo "VERCEL_TOKEN, VERCEL_ORG_ID, and VERCEL_PROJECT_ID must be set as repository secrets."
             exit 1
           fi
 
@@ -45,6 +45,7 @@ jobs:
           npx --yes vercel@41.7.0 link \
             --yes \
             --project "$VERCEL_PROJECT_ID" \
+            --scope "$VERCEL_ORG_ID" \
             --token "$VERCEL_TOKEN"
 
           deploy_args=(--yes --token "$VERCEL_TOKEN")
